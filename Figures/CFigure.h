@@ -9,6 +9,7 @@ class CFigure
 {
 protected:
 	Point center;
+	static int sharedID;		//Each figure has an ID
 	int ID;		//Each figure has an ID
 	bool Selected;	//true if the figure is selected.
 	GfxInfo FigGfxInfo;	//Figure graphis info
@@ -16,7 +17,7 @@ protected:
 	/// Add more parameters if needed.
 
 public:
-	int factorPosition;
+	int factorPosition = 2;
 	CFigure(GfxInfo FigureGfxInfo);
 	CFigure();
 	void SetSelected(bool );	//select/unselect the figure
@@ -37,7 +38,8 @@ public:
 	virtual void Save(ofstream& OutFile) = 0;	//Save the figure parameters to the file
 	virtual void Load(ifstream& Infile) = 0;	//Load the figure parameters to the file
 	////////////////////////////////////////////////////////////////////////////////////
-
+	virtual std::string getShapeType() = 0;
+	virtual std::string getColor() = 0;
 	///The following functions should be supported by the figure class
 	///It should be overridden by each inherited figure
 

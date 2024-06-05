@@ -1,29 +1,10 @@
 #include "ApplicationManager.h"
-#include "GUI\GUI.h"
 #include<thread>
 #include <future>
 #include<iostream>
 #include "ApplicationFiguresHelperPanel\ApplicationFiguresHelperPanel.h"
 
 class ThreadNotifier;
-
-//agenda will be here 
-//we need to manage on select show panal 
-//we need to inject our ui into application manager
-//we need to assign the application manager on select show the menu 
-//we need to let the application manager create a new thread fro this async 
-//then we need to  create a bridge channel between the application manager and the control panal
-//we wanna deliver this information to the figures via the application manager
-
-//[aim] panalManager sent through Evenet Channel to Another 
-//thread carrying ApplicationManager // callback or handler // implement handler interface
-
-
-//23-1-2021 we need to manage the switch mode to the game ! 
-//plan to switch to the game 
-//code first 
-
-
 
 
 class RUNpanalThread: public ThreadEventsHandler {
@@ -101,27 +82,14 @@ std::future<void>runAppManagerThread(ThreadNotifier* threadNoti){
 
 
 
-
-
-
-
-
 int main()
 {
-	/*
-	GUI* g=new GUI();
 	
-	
-	window* w=g->CreateWind(200, 300, 10, 10);
-	int x, y;
-	w->WaitMouseClick(x, y);
-	*/
-	
-	ThreadNotifier* threadNoti = new ThreadNotifier();
-	cout << "From Main: " << threadNoti << std::endl;
+	ThreadNotifier threadNoti;
+	cout << "From Main: " << &threadNoti << std::endl;
 	cout <<"From Main ThreeadID: "<< this_thread::get_id() << std::endl;
-	auto appManagerThread = runAppManagerThread(threadNoti); // waiting for arguments
-	auto panalThread = runPanalThread(threadNoti); // waiting for arguments
+	auto appManagerThread = runAppManagerThread(&threadNoti); // waiting for arguments
+	auto panalThread = runPanalThread(&threadNoti); // waiting for arguments
 
 	std::cout << "watch" << std::endl;
 

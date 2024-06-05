@@ -6,6 +6,7 @@
 #include "..\MouseState\MouseStateNotifier.h"
 #include "..\ApllicationManagerState\Header1.h"
 #include <map>
+#include<future>
 
 
 //This class is responsible for Grphical User Interface handling
@@ -15,23 +16,21 @@ class GUI
 {
 
 private:
-	ApplicationManagerState* appMngState;
-	MouseStateNotifier* mouseState;
-	MouseEventHandler* mouseDown;
-	MouseEventHandler* mouseMove;
-	MouseEventHandler* mouseUp;
+	ApplicationWindowState* mouseState;
+
+	ApplicationInputStates mStP;
 	
 public:	
 	window* pWind;	//Pointer to the Graphics Window
 public:
 	GUI();
 	~GUI();	
-	std::map<window*, MouseStateNotifier*> CreateWind(int, int, int , int) const; //creates the application window
+	std::map<window*, ApplicationWindowState*> CreateWind(int, int, int , int) const; //creates the application window
 
-	MouseStateNotifier* getMouseState();
+	ApplicationWindowState* getMouseState();
 	/////////// Input Functoinality  /////////////////
 	void GetPointClicked(int &x, int &y) const;//Get coordinate where user clicks
-	string GetSrting() const ;	 //Returns a string entered by the user
+	string GetSrting() ;	 //Returns a string entered by the user
 	ActionType MapInputToActionType(int& x, int& y) const; //Read the user click and map to an action
 
 
@@ -40,6 +39,7 @@ public:
 	void CreatePlayToolBar() const;	//creates Play mode toolbar & menu
 	void CreateStatusBar() const;	//create the status bar
 
+	void ClearDrawingToolBar() const;	//Clears draw toolbar 
 	void ClearStatusBar() const;	//Clears the status bar
 	void ClearDrawArea() const;	//Clears the drawing area
 	
@@ -48,7 +48,7 @@ public:
 	///TODO: Make similar functions for drawing all other figures.
 	void DrawEllipse(Point P1, Point p2, double StartAngle, double EndAngle, GfxInfo EllipseGfxInfo, bool selected) const;//Draw an Ellipse
 	void DrawHexagon(int* pX, int* pY, GfxInfo RectGfxInfo, bool selected) const;
-	void PrintMessage(string msg) const;	//Print a message on Status bar
+	void PrintMessage(string msg);	//Print a message on Status bar
 
 	color getCrntBackgroundColor()const;
 	color getCrntDrawColor() const;	//get current drwawing color

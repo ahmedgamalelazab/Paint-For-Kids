@@ -18,8 +18,9 @@ This file was last modified on 05.16.1999
 // appropriate window object
 windowinput* wipInput = NULL;
 int ctrlState = 1;
-MouseStateNotifier* mouseState = nullptr;
-MouseStPoint mouseInfo;
+int f1State = 1;
+ApplicationWindowState* mouseState = nullptr;
+ApplicationInputStates mouseInfo;
 static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 	switch(msg) {
@@ -114,10 +115,18 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 		  switch (wParam) {
 		  case VK_CONTROL:
 			  if (mouseState != NULL) {
-				  //std::cout << "CTRL Key UP" << endl;
+				  std::cout << "CTRL Key UP" << endl;
 				  ctrlState = 0;
 				  mouseInfo.ctrlKey = 0;
 				  mouseState->emit("CTRL_KEY", mouseInfo);
+			  }
+			  break;
+		  case VK_F1:
+			  if (mouseState != NULL) {
+				  std::cout << "F1 Key UP" << endl;
+				  f1State = 0;
+				  mouseInfo.f1Key = 0;
+				  mouseState->emit("F1_KEY", mouseInfo);
 			  }
 			  break;
 		  }
@@ -138,7 +147,7 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 					  return 0;
 				  }
 				  if (mouseInfo.ctrlKey == 0) {
-					  //std::cout << "CTRL Key Pressed" << endl;
+					  std::cout << "CTRL Key Pressed" << endl;
 					  mouseInfo.ctrlKey = 1;
 					  mouseState->emit("CTRL_KEY", mouseInfo);
 				  }
@@ -202,6 +211,17 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 		  case VK_F1:
             if(wipInput != NULL) {
                 wipInput->SetKeyInfo(hwnd, FUNCTION, 1);
+				if (mouseState != NULL) {
+					if (f1State == 0) {
+						f1State = 1;
+						//return 0;
+					}
+					if (f1State == 1) {
+						std::cout << "F1 Key Pressed" << endl;
+						mouseInfo.f1Key = 1;
+						mouseState->emit("F1_KEY", mouseInfo);
+					}
+				}
 			}
 			break;
 
@@ -287,7 +307,7 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 window::window(const int iWindWidth, const int iWindHeight, const int iWindXPos, const int iWindYPos) :
 hInstance(GetModuleHandle(0)), iWindowWidth(iWindWidth), iWindowHeight(iWindHeight) {
 
-	mouseState = new MouseStateNotifier();
+	mouseState = new ApplicationWindowState();
 
 	iMouseX = -1;
 	iMouseY = -1;
@@ -342,6 +362,8 @@ hInstance(GetModuleHandle(0)), iWindowWidth(iWindWidth), iWindowHeight(iWindHeig
 }
 
 window::~window() {
+
+	delete mouseState;
 
     int iX, iY;
 
@@ -414,7 +436,7 @@ HWND window::getWindow()const
 	return this->hwndWindow;
 }
 
-MouseStateNotifier* window::getMouseState() const
+ApplicationWindowState* window::getMouseState() const
 {
 	return mouseState;
 }

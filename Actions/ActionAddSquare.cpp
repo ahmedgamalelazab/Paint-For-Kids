@@ -22,6 +22,9 @@ void ActionAddSquare::Execute()
 	//get drawing, filling colors and pen width from the interface
 	SqrGfxInfo.DrawClr = pGUI->getCrntDrawColor();
 	SqrGfxInfo.FillClr = pGUI->getCrntFillColor();
+	if (SqrGfxInfo.FillClr.toHexa() != "#000000") {
+		SqrGfxInfo.isFilled = true;
+	}
 	SqrGfxInfo.BorderWdth = pGUI->getCrntPenWidth();
 
 
@@ -55,4 +58,12 @@ void ActionAddSquare::Execute()
 
 	//Step 4 - Add the Square to the list of figures
 	pManager->AddFigure(R);
+}
+
+void ActionAddSquare::Undo()
+{
+}
+
+void ActionAddSquare::Redo()
+{
 }

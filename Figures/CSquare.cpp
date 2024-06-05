@@ -1,19 +1,26 @@
 #include "CSquare.h"
-#include<fstream>
+
+
+
 
 CSquare::CSquare()
 {
+	sharedID++;
+	ID = sharedID;
 }
+
 
 CSquare::CSquare(Point P1, int len, GfxInfo FigureGfxInfo):CFigure(FigureGfxInfo)
 {
+	sharedID++;
+	ID = sharedID;
 	TopLeftCorner = P1;
 	int x = (TopLeftCorner.x - (TopLeftCorner.x + length)) / 2;
 	int y = (TopLeftCorner.y - (TopLeftCorner.y + length)) / 2;
 	//setCenterPoint(x, y);
 	length = len;
 	startLength = length;
-	factorPosition = 2;
+	//factorPosition = 2;
 }
 
 void CSquare::setPoint(int x, int y)
@@ -31,6 +38,9 @@ void CSquare::setCenterPoint(int x, int y)
 {
 	/*center.x = x;
 	center.y = y;*/
+	if (y - (length / 2) <= 50) {
+		return;
+	}
 	TopLeftCorner.x = x - (length/2);
 	TopLeftCorner.y = y - (length/2);
 }
@@ -70,7 +80,7 @@ string CSquare::getFigData() const
 	std::string figEndPoint = "BRPoint: (" + std::to_string(TopLeftCorner.x+length) + ","
 		+ std::to_string(TopLeftCorner.y+length) + ")";
 	std::string figArea = "Area: " + std::to_string(length * length);
-	std::string figData = figID + " - " + figStartPoint + " - " + figEndPoint + " - " + figArea;
+	std::string figData = figID + " - " + figStartPoint + " - " + figEndPoint + " - " + figArea; //figID + " - " +
 	return figData;
 }
 
@@ -100,6 +110,9 @@ void CSquare::Load(ifstream& myFile) {
 	char* fillClr;
 
 	myFile >> id >> topleft.x >> topleft.y >> length >> strDrwClr >> strFillClr;
+
+	startLength = length;
+
 	//manual casting
 	drwClr = &strDrwClr[0];
 	fillClr = &strFillClr[0];
@@ -126,6 +139,16 @@ void CSquare::Load(ifstream& myFile) {
 		ChngFillClr(color(r, g, b));
 	}
 
+}
+
+std::string CSquare::getShapeType()
+{
+	return "SQUARE";
+}
+
+std::string CSquare::getColor()
+{
+	return this->FigGfxInfo.FillClr.toHexa();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////

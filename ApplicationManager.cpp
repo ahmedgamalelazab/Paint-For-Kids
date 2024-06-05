@@ -3,7 +3,10 @@
 #include "Actions\ActionAddEllipse.h"
 #include "Actions\ActionSelectFig.h"
 #include "Actions\ActionAddHexagon.h"
+#include "Actions\ActionToPlayToDrawToggle.h"
 #include "Actions\Resize.h"
+#include "Actions/ActionSendToBack.h"
+#include "Actions/ActionBringToFront.h"
 #include <iostream>
 #include "MouseState\MouseStatesUtil.h"
 #include "DEFS.h"
@@ -12,14 +15,19 @@
 
 
 
-void ApplicationManager::onEvent(MouseStPoint& data)
+void ApplicationManager::onEvent(ApplicationInputStates& data)
 {
-
 	ctrlState = data.ctrlKey;   // get ctrl button state
+	f1State = data.f1Key;   // get f1 button state
 
 	/* Fixing Screen Error */
 	if (data.state == STATE_SIZING || data.state == STATE_PAINTING) {
+
 		std::async(std::launch::async, &ApplicationManager::UpdateInterface,this);
+		std::async(std::launch::async, &GUI::CreateStatusBar, pGUI);
+		std::async(std::launch::async, [this]() {
+			pGUI->CreateDrawToolBar();
+			});
 	}
 
 	// case delete button is pressed
@@ -31,13 +39,10 @@ void ApplicationManager::onEvent(MouseStPoint& data)
 			pGUI->PrintMessage("The Selected Figures have been Deleted!");
 			pGUI->ClearDrawArea();
 			UpdateInterface();
-			data.delKey = 0;
 		}
+		data.delKey = 0;
 		cout << "Delete-Key pressed" << endl;
 	}
-
-	//cout << "STATE: " <<data.state<< endl;
-	//cout << "ActionType: " << ActType << endl;
 
 	/* Moving the selected figure */
 	if (GetSelectedFigure() != -1 && data.mouseDown == true) {
@@ -52,17 +57,39 @@ void ApplicationManager::onEvent(MouseStPoint& data)
 
 void ApplicationManager::onMessageRecieved(PanelListener* panelListen)
 {
-	if (GetSelectedFigure() != -1 && panelListen->stat == PANEL_OPEN) {
-		panelListen->appPanelMngr->launchPanal();
+	if ((GetSelectedFigure() != -1 || f1State ==1) && panelListen->stat == PANEL_OPEN) {
+		if (UI.InterfaceMode == MODE_DRAW) {
+			panelListen->appPanelMngr->launchPanal();
+		}
 	}
 	else if (GetSelectedFigure() != -1 && panelListen->stat == PANEL_CLOSE) {
 		FigList[GetSelectedFigure()]->SetSelected(false);
 		UpdateInterface();
 	}
-	else if (GetSelectedFigure() != -1 && panelListen->stat == PANAL_SENDING_COLOR) {
-		FigList[GetSelectedFigure()]->ChngFillClr(panelListen->selectedObjColor);
-		FigList[GetSelectedFigure()]->ChngDrawClr(panelListen->selectedObjColor);
-		UpdateInterface();
+	else if (panelListen->stat == PANAL_SENDING_COLOR) {
+		
+		switch (panelListen->target) {
+		case BACKGROUND:
+			UI.BkGrndColor = panelListen->selectedObjColor;
+			pGUI->PrintMessage("Background color set to : " + panelListen->selectedObjColor.toHexa());
+			break;
+		case DRAWING:
+			UI.DrawColor = panelListen->selectedObjColor;
+			pGUI->PrintMessage("Drawing color set to : " + panelListen->selectedObjColor.toHexa());
+			break;
+		case FILLING:
+			UI.FillColor = panelListen->selectedObjColor;
+			pGUI->PrintMessage("Filing color set to : " + panelListen->selectedObjColor.toHexa());
+			break;
+		case FIGURE:
+			if (GetSelectedFigure() != -1) {
+				FigList[GetSelectedFigure()]->ChngFillClr(panelListen->selectedObjColor);
+				FigList[GetSelectedFigure()]->ChngDrawClr(panelListen->selectedObjColor);
+			}
+			break;
+		}
+
+		std::async(std::launch::async, &ApplicationManager::UpdateInterface, this);
 	}
 }
 
@@ -71,7 +98,7 @@ ApplicationManager::ApplicationManager(ThreadNotifier* threadNoti)
 {
 	this->threadNoti = threadNoti;
 
-	//threadNoti->on("PANEL_START", this);
+	resetGame();
 
 	cout << "From AppMngr: " << threadNoti << std::endl;
 	cout << "From AppMngr ThreadID: " << this_thread::get_id() << std::endl;
@@ -81,22 +108,29 @@ ApplicationManager::ApplicationManager(ThreadNotifier* threadNoti)
 	pGUI = new GUI();
 
 	/* Start Listening on inputs */
-	mouseState = pGUI->getMouseState();
-	mouseState->on("MOUSE_DOWN", this);
-	mouseState->on("MOUSE_MOVE", this);
-	mouseState->on("MOUSE_UP", this);
-	mouseState->on("DELETE_KEY", this);
-	mouseState->on("WIN_SIZING", this);
-	mouseState->on("WIN_PAINTING", this);
+	appWindowState = pGUI->getMouseState();
+	appWindowState->on("MOUSE_DOWN", this);
+	appWindowState->on("MOUSE_MOVE", this);
+	appWindowState->on("MOUSE_UP", this);
+	appWindowState->on("DELETE_KEY", this);
+	appWindowState->on("CTRL_KEY", this);
+	appWindowState->on("F1_KEY", this);
+	appWindowState->on("WIN_SIZING", this);
+	appWindowState->on("WIN_PAINTING", this);
+	//mouseState->on("MSG_CHANGE", this);
+
 	this->threadNoti->on("PANEL_START", this);
 	this->threadNoti->on("PANEL_CLOSE", this);
 	this->threadNoti->on("PANEL_CHANGE_COLOR", this);
+
+	//initializing intial appMode state 
+	UI.InterfaceMode = MODE_DRAW; // INTIAL STATE
+
 
 	//Create an array of figure pointers and set them to NULL		
 	for(int i=0; i<MaxFigCount; i++)
 		FigList[i] = NULL;	
 }
-
 void ApplicationManager::Run()
 {
 	do
@@ -122,7 +156,7 @@ void ApplicationManager::Run()
 		ExecuteAction(pAct);
 
 		//4- Update the interface
-		UpdateInterface();
+		std::async(std::launch::async, &ApplicationManager::UpdateInterface, this);
 
 	}while(ActType != EXIT);
 	
@@ -163,6 +197,16 @@ Action* ApplicationManager::CreateAction(ActionType& ActType)
 				pGUI->PrintMessage("Please select a figure first to resize it!");
 			}
 			break;
+		case SEND_BACK:
+			if (GetSelectedFigure() != -1) {
+				newAct = new ActionSendToBack(this, FigList[GetSelectedFigure()]);
+			}
+			break;
+		case BRNG_FRNT:
+			if (GetSelectedFigure() != -1) {
+				newAct = new ActionBringToFront(this, FigList[GetSelectedFigure()]);
+			}
+			break;
 		case SAVE:
 			newAct = new ActionSave(this, FigCount);
 			break;
@@ -171,6 +215,42 @@ Action* ApplicationManager::CreateAction(ActionType& ActType)
 			newAct = new ActionLoad(this);
 			break;
 
+		case TO_PLAY_DRAW_TOGGLE:
+			newAct = new ActionToPlayDrawToggle(this);
+			break;
+		case GAME_MODE_FIGTYPE:
+			/* Add action for this mode */
+			if (!gameStates.isPlaying) {
+				std::cout << "GAME_MODE_FIG_TYPE_SELECTED" << std::endl;
+				gameStates.gameMode = GAME_MODE_FIGTYPE;
+				gameStates.isPlaying = true;
+			}
+			else {
+				MessageBox(pGUI->pWind->getWindow(), "Please complete the game first to change the mode.", "Alert", MB_OKCANCEL);
+			}
+			break;
+		case GAME_MODE_FILLCOLOR:
+			/* Add action for this mode */
+			if (!gameStates.isPlaying) {
+				std::cout << "GAME_MODE_FILL_COLOR_SELECTED" << std::endl;
+				gameStates.gameMode = GAME_MODE_FILLCOLOR;
+				gameStates.isPlaying = true;
+			}
+			else {
+				MessageBox(pGUI->pWind->getWindow(), "Please complete the game first to change the mode.", "Alert", MB_OKCANCEL);
+			}
+			break;
+		case GAME_MODE_TYPE_AND_FILL:
+			/* Add action for this mode */
+			if (!gameStates.isPlaying) {
+				std::cout << "GAME_MODE_FILL_TYPE_SELECTED" << std::endl;
+				gameStates.gameMode = GAME_MODE_TYPE_AND_FILL;
+				gameStates.isPlaying = true;
+			}
+			else {
+				MessageBox(pGUI->pWind->getWindow(), "Please complete the game first to change the mode.", "Alert", MB_OKCANCEL);
+			}
+			break;
 		case EXIT:
 			if (MessageBox(pGUI->pWind->getWindow(), "Are you sure?", "Close", MB_OKCANCEL) == IDOK)
 			{
@@ -202,6 +282,7 @@ void ApplicationManager::ExecuteAction(Action* &pAct)
 		pAct = NULL;
 	}
 }
+
 //==================================================================================//
 //						Figures Management Functions								//
 //==================================================================================//
@@ -209,6 +290,48 @@ void ApplicationManager::ExecuteAction(Action* &pAct)
 int ApplicationManager::getFigCount()
 {
 	return FigCount;
+}
+
+void ApplicationManager::gameMachineValidCount(int PLAY_MODE)
+{
+	switch (PLAY_MODE)
+	{
+	case GAME_MODE_FIGTYPE:
+		for (int i = 0; i < FigCount; i++) {
+			if (FigList[i]->getShapeType() == gameStates.figType) {
+				gameStates.validShapesCount++;
+			}
+			else {
+				gameStates.inValidShapesCount++;
+			}
+		}
+		break;
+	case GAME_MODE_FILLCOLOR:
+		//TODO error prone area
+		for (int i = 0; i < FigCount; i++) {
+			if (FigList[i]->getColor() == gameStates.figColor) {
+				gameStates.validShapesCount++;
+			}
+			else {
+				gameStates.inValidShapesCount++;
+			}
+		}
+		break;
+	case GAME_MODE_TYPE_AND_FILL:
+		//TODO error prone area
+		for (int i = 0; i < FigCount; i++) {
+			if (FigList[i]->getColor() == gameStates.figColor && FigList[i]->getShapeType() == gameStates.figType) {
+				gameStates.validShapesCount++;
+			}
+			else {
+				gameStates.inValidShapesCount++;
+			}
+		}
+		break;
+	default:
+		std::cout << "unknown Error happen ! <<<< "<<std::endl;
+		break;
+	}
 }
 
 CFigure** ApplicationManager::getFigList()
@@ -223,20 +346,97 @@ void ApplicationManager::AddFigure(CFigure* pFig)
 		FigList[FigCount++] = pFig;	
 }
 
+void ApplicationManager::deleteFigure(CFigure* pFig)
+{
+
+	std::async(std::launch::async, [this , pFig]() {
+		int index = 0;
+		for (int i = 0; i < FigCount; i++) {
+			if (FigList[i] == pFig) {
+				delete pFig;
+				index = i;
+				break;
+			}
+		}
+
+		for (int i = index; i < FigCount; i++) {
+			FigList[i] = FigList[i + 1];
+			if (i + 1 == FigCount) {
+				FigList[i] = NULL;
+				FigCount--;
+			}
+		}
+		});
+}
+
 void ApplicationManager::DeleteSelectedFigures()
 {
+	
+	std::async(std::launch::async, [this]() {
+		for (int i = 0; i < FigCount; i++) {
+			if (FigList[i]->IsSelected()) {
+				delete FigList[i];
+				for (int j = i; j < FigCount; j++) {
+					FigList[j] = FigList[j + 1];
+					if (j + 1 == FigCount) {
+						FigList[j] = NULL;
+						//ERROR PRONE EREA
+					}
+				}
+				i--;
+				FigCount--;
+			}
+		}
+		});
+}
+
+//sendBack & bringToFront
+void ApplicationManager::SendFigureBack(CFigure* selectedFigure)
+{
+	
+	//check for any shape selected 
 	for (int i = 0; i < FigCount; i++) {
 		if (FigList[i]->IsSelected()) {
-			for (int j = i; j < FigCount; j++) {
-				FigList[j] = FigList[j + 1];
-				if (j + 1 == FigCount) {
-					FigList[j] = NULL;
+			CFigure* temp = selectedFigure;
+			int swappingIndex = 0;
+			for (int i = 0; i < FigCount; i++)
+				if (selectedFigure == FigList[i])
+				{
+					swappingIndex = i;
+					break;
 				}
-			}
-			i--;
-			FigCount--;
+
+			for (int i = swappingIndex; i > 0; i--)
+				FigList[i] = FigList[i - 1];
+			FigList[0] = temp;
 		}
+		
 	}
+	return;
+	
+	
+}
+
+void ApplicationManager::BringFigureFront(CFigure* selectedFigure)
+{
+	//check if any shape selected on the board 
+	//check for any shape selected 
+	for (int i = 0; i < FigCount; i++) {
+		if (FigList[i]->IsSelected()) {
+			CFigure* temp = selectedFigure;
+			int swappingIndex = 0;
+			for (int i = 0; i < FigCount; i++)
+				if (selectedFigure == FigList[i])
+					swappingIndex = i;
+
+			for (int i = swappingIndex; i < FigCount - 1; i++)
+				FigList[i] = FigList[i + 1];
+			FigList[FigCount - 1] = temp;
+		}
+		
+	}
+	return;
+	
 }
 
 CFigure *ApplicationManager::GetFigure(int x, int y) const
@@ -273,15 +473,37 @@ void ApplicationManager::UnSelectAllFigs() const
 
 //Draw all figures on the user interface
 void ApplicationManager::UpdateInterface() const
-{	
-	pGUI->CreateDrawToolBar();
-	pGUI->CreateStatusBar();
-	if (GetSelectedFigure() != -1) {
-		pGUI->PrintMessage(FigList[GetSelectedFigure()]->getFigData());
-	}
-	pGUI->ClearDrawArea();
-	for(int i=0; i<FigCount; i++)
-		FigList[i]->DrawMe(pGUI);		//Call Draw function (virtual member fn)
+{		
+	std::async(std::launch::async, [this]() {
+		std::cout << UI.InterfaceMode << std::endl;
+		//if (UI.InterfaceMode == MODE_PLAY) {
+		//	pGUI->ClearDrawingToolBar(); //updare interface his job is to clean the screen according to the the mode we are in 		
+		//	std::async(std::launch::async, [this]() {
+		//		pGUI->CreateDrawToolBar();
+		//		});
+		//}
+
+		//std::this_thread::sleep_for(60ms);
+		if (GetSelectedFigure() != -1) {
+			pGUI->PrintMessage(FigList[GetSelectedFigure()]->getFigData());
+		}
+		pGUI->ClearDrawArea();
+		for (int i = 0; i < FigCount; i++)
+			FigList[i]->DrawMe(pGUI);		//Call Draw function (virtual member fn)
+		});
+
+}
+
+void ApplicationManager::resetGame()
+{
+	gameStates.gameMode = -1;
+	gameStates.validShapesCount = 0;
+	gameStates.inValidShapesCount = 0;
+	gameStates.figType = "";
+	gameStates.correctAns = 0;
+	gameStates.wrongAns = 0;
+	gameStates.figColor = "";
+	gameStates.isPlaying = false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -342,11 +564,11 @@ std::string ApplicationManager::openFile(HWND hwnd)
 	return result;
 }
 
-
 void ApplicationManager::SaveFigs(ofstream& file) {
 	for (int i = 0; i < FigCount; i++)
 		FigList[i]->Save(file);
 }
+
 void ApplicationManager::RemoveAllFigs()  //for each figure FigList, make it points to NULL 
 {
 	for (int i = 0; i < FigCount; ++i)

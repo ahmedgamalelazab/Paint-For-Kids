@@ -19,17 +19,17 @@
   //* class Reperesent the eventHandler 
 
 
-class MouseStateNotifier{
+class ApplicationWindowState{
 
     public:
     
-    MouseStateNotifier(){
+    ApplicationWindowState(){
         //done
     }
 
     //to be able to notify u should implement this function 
 
-    void on(std::string topic, MouseEventHandler* handler) {
+    void on(std::string topic, WindowStateHandler* handler) {
         //TODO FIX IF ERROR APPEAR => error prone area
         //~ subscribe on something if it's already subscribed don't add handles again 
         //~ search on handler if it lives inside or not ! 
@@ -40,13 +40,13 @@ class MouseStateNotifier{
         }
     };
 
-    void off(std::string topic , MouseEventHandler* handler){
+    void off(std::string topic , WindowStateHandler* handler){
         if(!events[topic].empty()){
             events[topic].pop_back();
         }
     }
 
-    void emit(std::string topic , MouseStPoint& data){
+    void emit(std::string topic , ApplicationInputStates& data){
         for(int i = 0 ; i < events[topic].size();i++){
             //error prone area if FIX AFTER DEBUG
             events[topic][i]->onEvent(data);
@@ -55,6 +55,6 @@ class MouseStateNotifier{
     
     private:
 
-        std::map<std::string,std::vector<MouseEventHandler*>>events;
+        std::map<std::string,std::vector<WindowStateHandler*>>events;
 
 };

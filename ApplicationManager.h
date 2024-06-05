@@ -9,37 +9,49 @@
 #include "ApplicationServices\ThreadNotifier.h"
 #include<future>
 #include<thread>
+#include<vector>
 
 class Action;	//Forward Declaration
-
 
 //void myThread(ApplicationManagerState* appMngState);
 //
 //std::future<void> startThread(ApplicationManagerState* appMngState);
 
 //Main class that manages everything in the application.
-class ApplicationManager: public MouseEventHandler, public ThreadEventsHandler
+class ApplicationManager: public WindowStateHandler, public ThreadEventsHandler
 {
 	enum { MaxFigCount = 200 };	//Max no of figures
 
 private:
+	std::string msg;
 	PanelListener pl;
 	bool flag;
 	//bool targetObjSelected;
 	ActionType ActType;
 	int FigCount, x, y;		//Actual number of figures
 	CFigure* FigList[MaxFigCount];	//List of all figures (Array of pointers)
-	MouseStateNotifier* mouseState;
+	std::vector<Action*>history; //the history of the actions 
+	ApplicationWindowState* appWindowState;
 	ApplicationManagerState* appManagerState;
 	//Pointers to Input and Output classes
 	GUI* pGUI;
-
 	
-
 public:
+
+	struct GameStates {
+		int validShapesCount, inValidShapesCount;
+		std::string figType;
+		std::string figColor;
+		int correctAns, wrongAns;
+		int gameMode; // start playing the game 
+		bool isPlaying;
+	};
+
+	GameStates gameStates;
 
 	//for (MULTI SELECT)
 	int ctrlState;      // ctrl button state used in select action
+	int f1State;      // f1 button state
 
 	//saving and loading functionality /////////////////////////////////////////
 	std::string openFile(HWND hwnd);
@@ -55,11 +67,10 @@ public:
 	//ApplicationFiguresHelperPanelManager* panelManeger;
 	ThreadNotifier* threadNoti;
 
-	virtual void onEvent(MouseStPoint &data);
+	virtual void onEvent(ApplicationInputStates &data);
 	virtual void onMessageRecieved(PanelListener* panelListen);
 	ApplicationManager(ThreadNotifier* threadNoti);
 	~ApplicationManager();
-
 	void Run();		//to run the application
 
 	// -- Action-Related Functions
@@ -68,8 +79,10 @@ public:
 	
 	// -- Figures Management Functions
 	int getFigCount();				// get current figures count
+	void gameMachineValidCount(int PLAY_MODE);	// calculate valid shapes and in valid shapes
 	CFigure** getFigList();			// get all figures
 	void AddFigure(CFigure* pFig); //Adds a new figure to the FigList
+	void deleteFigure(CFigure* pFig);	// delete specific figure
 	void DeleteSelectedFigures(); // Delets all selected figures
 	CFigure* GetFigure(int x, int y) const; //Search for a figure given a point inside the figure
 	int GetSelectedFigure() const; //Search for a figure given a point inside the figure
@@ -78,4 +91,11 @@ public:
 	// -- Interface Management Functions	
 	GUI *GetGUI() const; //Return pointer to the interface
 	void UpdateInterface() const;	//Redraws all the drawing window	
+
+	void resetGame();
+
+	//sendBack & bringToFront
+	void SendFigureBack(CFigure*);
+	void BringFigureFront(CFigure*);
+
 };

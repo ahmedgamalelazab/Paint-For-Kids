@@ -2,13 +2,15 @@
 #define CSQUARE_H
 
 #include "CFigure.h"
+#include <fstream>
 
 class CSquare : public CFigure
 {
-private:
+private:		
 	Point TopLeftCorner;	
 	int length;
 	int startLength;
+
 public:
 	CSquare();
 	CSquare(Point , int, GfxInfo FigureGfxInfo );
@@ -21,6 +23,8 @@ public:
 	virtual string getFigData() const;
 	virtual void Save(ofstream& OutFile);	//Save the figure parameters to the file
 	virtual void Load(ifstream& Infile);	//Load the figure parameters to the file
+	virtual std::string getShapeType();
+	virtual std::string getColor();
 
 };
 

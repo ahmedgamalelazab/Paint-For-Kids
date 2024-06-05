@@ -2,17 +2,21 @@
 #define CELLIPSE_H
 
 #include "CFigure.h"
+#include <fstream>
 
 class CEllipse : public CFigure
 {
 private:
 	Point firstPoint;
 	Point secondPoint;
+	Point sFP, sSP;
 	double  StartAngle;
 	double  EndAngle;
 	int xLength, yLength;
+	int startxLength, startyLength;
+	static std::string SHAPE_TYPE;
 public:
-	//CEllipse(Point,Point,double,double, GfxInfo FigureGfxInfo);
+	CEllipse();
 	CEllipse(Point P1, Point p2, double StartAng, double EndAng, GfxInfo FigureGfxInfo);
 	virtual void DrawMe(GUI* pOut) const;
 	void setPoint(int x, int y);
@@ -23,7 +27,10 @@ public:
 	virtual string getFigData() const;
 	virtual void Save(ofstream& OutFile);	//Save the figure parameters to the file
 	virtual void Load(ifstream& Infile);	//Load the figure parameters to the file
-
+	virtual std::string getShapeType();
+	virtual string getColor();
 };
+
+
 
 #endif
